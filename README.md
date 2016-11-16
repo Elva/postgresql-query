@@ -110,7 +110,7 @@ db.queryOne('UPDATE artists SET first_name = $1, last_name = $2, country = $3 WH
 });
 ```
 
-## beginTransaction();
+## beginTransaction()
 Helper function to make it easy dealing with transactions. It takes only a single parameter - a callback function and passed transaction object to it.
 ```
 db.beginTransaction(function (transaction) {
