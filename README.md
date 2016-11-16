@@ -160,3 +160,5 @@ db.beginTransaction(function (transaction) {
     });
 });
 ```
+
+It isn't very pretty from the first glance, but compared with native way of writing transactions (https://github.com/brianc/node-postgres/wiki/Transactions) it is the most pretty code ever written.
