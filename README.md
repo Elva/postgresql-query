@@ -58,6 +58,26 @@ db.queryOne('SELECT * FROM artists WHERE id = $1', 47, function (err, artist) {
 ```
 
 ## queryInsert()
+Helper function to make it easy writing INSERT queries.
+```js
+db.queryInsert({
+    table: 'artists',
+    fields: {
+        first_name: 'John',
+        last_name: 'Doe',
+        country: 'Italy'
+    },
+    returnValue: '*'
+}, function (err, insertedRow) {
+    
+});
+```
+Above is similar to this:
+```js
+db.queryOne('INSERT INTO artists (first_name, last_name, country) VALUES ($1, $2, $3) RETURNING *', ['John', 'Doe', 'Italy'], function (err, insertedRow) {
+    
+});
+```
 
 ## queryUpdate()
 
