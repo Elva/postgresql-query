@@ -1,4 +1,4 @@
-### `postgesql-query`
+### `postgresql-query`
 `Querying PostgreSQL with Node.js made easy.`
 
 &nbsp;
