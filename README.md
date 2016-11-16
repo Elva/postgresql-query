@@ -59,6 +59,9 @@ db.queryOne('SELECT * FROM artists WHERE id = $1', 47, function (err, artist) {
 
 ## queryInsert()
 Helper function to make it easy writing INSERT queries.
+```
+db.queryInsert(obj, callback);
+```
 ```js
 db.queryInsert({
     table: 'artists',
@@ -72,7 +75,7 @@ db.queryInsert({
     
 });
 ```
-Above is similar to this:
+Above is the same as this:
 ```js
 db.queryOne('INSERT INTO artists (first_name, last_name, country) VALUES ($1, $2, $3) RETURNING *', ['John', 'Doe', 'Italy'], function (err, insertedRow) {
     
@@ -80,5 +83,31 @@ db.queryOne('INSERT INTO artists (first_name, last_name, country) VALUES ($1, $2
 ```
 
 ## queryUpdate()
+Helper function to make it easy writing UPDATE queries.
+```
+db.queryUpdate(obj, callback);
+```
+```js
+db.queryUpdate({
+    table: 'artists',
+    fields: {
+        first_name: 'Mister',
+        last_name: 'Smith',
+        country: 'Spain'
+    },
+    where: {
+        id: 38
+    },
+    returnValue: '*'
+}, function (err, updatedRow) {
+    
+});
+```
+Above is the same as this:
+```js
+db.queryOne('UPDATE artists SET first_name = $1, last_name = $2, country = $3 WHERE id = $4 RETURNING *', ['Mister', 'Smith', 'Spain', 38], function (err, updatedRow) {
+    
+});
+```
 
 ## beginTransaction();
