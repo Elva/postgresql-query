@@ -111,3 +111,52 @@ db.queryOne('UPDATE artists SET first_name = $1, last_name = $2, country = $3 WH
 ```
 
 ## beginTransaction();
+Helper function to make it easy dealing with transactions. It takes only a single parameter - a callback function and passed transaction object to it.
+```
+db.beginTransaction(function (transaction) {
+});
+```
+Transaction object has three methods:
+```js
+transaction.query();
+transaction.commit();
+transaction.rollback();
+```
+transaction.query() is similar to db.query and can run multiple queries one after another. It also supports db.insertQuery() and db.updateQuery() syntax, so handy way of writing INSERT/UPDATE queries can be used here as well.
+
+Example below starts a transaction, inserts a new artist and if that query was successfull adds two albums on that artist and then commits the transaction.
+```js
+db.beginTransaction(function (transaction) {
+    transaction.query({
+        table: 'artist',
+        fields: {
+            first_name: 'Something'
+        },
+        returnValue: '*'
+    }, function (err, insertedArtist) {
+        if (err) { return transaction.rollback(); }
+        
+        transaction.query([
+            {
+                table: 'albums',
+                fields: {
+                    artist_id: insertedArtist.id,
+                    title: 'Best Songs',
+                    release_year: 2017
+                }
+            },
+            {
+                table: 'albums',
+                fields: {
+                    artist_id: insertedArtist.id,
+                    title: 'New Century',
+                    release_year: 2016
+                }
+            }
+        ], function (err) {
+            if (err) { return transaction.rollback(); }
+            transaction.commit();
+        });
+    });
+});
+```
