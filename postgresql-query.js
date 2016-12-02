@@ -176,7 +176,7 @@ function buildInsertQuery(data) {
         var val = data.fields[field];
 
         if (field === 'sort_order' && val === 'auto') {
-            sql += '(SELECT MAX(sort_order) + 1 FROM ' + data.table + ')';
+            sql += '(SELECT COALESCE(MAX(sort_order), 0) + 1 FROM ' + data.table + ')';
         } else {
             sql += '$' + (pIndex += 1);
             values.push(val);
