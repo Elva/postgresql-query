@@ -8,11 +8,15 @@
 
 &nbsp;
 
+## Install
+
+    npm install postgresql-query
+
 ## config()
 Require and prepare module for querying.
 
 ```js
-var db = require('postgersql-query');
+var db = require('postgresql-query');
 
 db.config({
     username: '',
