@@ -343,12 +343,22 @@ function pgTransaction(callback) {
                 if (err) { return rollbackFromPool(client, done); }
 
                 callback({
-                    rollback: function () {
-                        rollbackFromPool(client, done);
+                    rollback: function (callback) {
+                        rollbackFromPool(client, function () {
+                            if (isFunction(callback)) {
+                                callback();
+                            }
+                            return done();
+                        });
                     },
-                    commit: function () {
+                    commit: function (callback) {
                         ended = true;
-                        client.query('COMMIT', done);
+                        client.query('COMMIT', function () {
+                            if (isFunction(callback)) {
+                                callback();
+                            }
+                            return done();
+                        });
                     },
                     query: function (tasks, callback) {
                         tasks = Array.isArray(tasks) ? tasks : [tasks];
