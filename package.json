@@ -2,11 +2,11 @@
   "name": "postgresql-query",
   "main": "postgresql-query.js",
   "description": "Querying PostgreSQL with Node.js made easy.",
-  "version": "0.0.5",
+  "version": "1.0.0",
   "author": "Lasha Tavartkiladze (coloraggio)",
   "license": "MIT",
   "repository": "Elva/postgresql-query",
   "dependencies": {
-    "pg": "6.4.1"
+    "pg": "7.1.0"
   }
 }

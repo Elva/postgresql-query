@@ -23,28 +23,24 @@ module.exports = {
 
 
 //
-// Internal reference for a connection string.
+// Internal connection pool.
 //
-var PG_CONN_STRING = null;
+var pool;
 
 
 //
-// Prepare module for querying. 
+// Prepare module for querying.
 //
 function config(options) {
     options = options || {};
-    options.username = options.username || 'postgres';
+
+    options.user     = options.username = options.username || 'postgres';
     options.password = options.password || '';
-    options.host = options.host || '127.0.0.1';
-    options.port = options.port || 5432;
+    options.host     = options.host || '127.0.0.1';
+    options.port     = options.port || 5432;
     options.database = options.database || 'postgres';
 
-    if (options.connString) {
-        PG_CONN_STRING = options.connString;
-    } else {
-        PG_CONN_STRING = 'postgres://' + options.username + ':' + options.password + '@' + 
-        options.host + ':' + options.port + '/' + options.database;
-    }
+    pool = new lib.pg.Pool(options);
 }
 
 
@@ -68,42 +64,42 @@ function config(options) {
 //        
 //    });
 //
-// Note: Connection pool isn't used because it "sucks":
-// https://github.com/brianc/node-postgres/issues/227
-//
 function query() {
     var args             = Array.prototype.slice.call(arguments);
     var tasks            = args[0];
-    var isMultiQueryMode = Array.isArray(tasks);
     var callback         = args[args.length - 1];
-    var hasCallback      = (typeof callback === 'function');
+    var isMultiQueryMode = Array.isArray(tasks);
+    var hasCallback      = isFunction(callback);
     var sqlQuery;
     var sqlValues;
 
-    var client = new lib.pg.Client(PG_CONN_STRING);
-    client.connect();
+    pool.connect(function (err, client, done) {
+        if (err && hasCallback) {
+            return callback(err, null);
+        }
 
-    if (isMultiQueryMode) {
-        queryTasks(client, tasks, function () {
-            if (hasCallback) {
-                callback.apply(null, arguments);
-            }
-            client.end();
-        });
-    } else {
-        sqlQuery = tasks;
-        sqlValues = hasCallback ? args.slice(1, args.length - 1) : args.slice(1);
+        if (isMultiQueryMode) {
+            queryTasks(client, done, tasks, function () {
+                done();
 
-        client.query(sqlQuery, flatArray(sqlValues), function (err, result) {
-            var rows = (result && Array.isArray(result.rows)) ? result.rows : [];
-            
-            if (hasCallback) {
-                callback(err, rows);
-            }
+                if (hasCallback) {
+                    callback.apply(null, arguments);
+                }
+            });
+        } else {
+            sqlQuery = tasks;
+            sqlValues = hasCallback ? args.slice(1, args.length - 1) : args.slice(1);
 
-            client.end();
-        });
-    }
+            client.query(sqlQuery, flatArray(sqlValues), function (err, result) {
+                done();
+
+                var rows = (result && Array.isArray(result.rows)) ? result.rows : [];
+                if (hasCallback) {
+                    callback(err, rows);
+                }
+            });
+        }
+    });
 }
 
 
@@ -263,7 +259,7 @@ function buildUpdateQuery(data) {
 // Note: In order for this function to be usable during transactions 
 // client.end() isn't automatically called when finalCallback function is present.
 //
-function queryTasks(client, tasks, finalCallback) {
+function queryTasks(client, done, tasks, finalCallback) {
     var hasFinalCallback = isFunction(finalCallback);
     var count = tasks.length;
     var results = [];
@@ -273,7 +269,7 @@ function queryTasks(client, tasks, finalCallback) {
             if (hasFinalCallback) {
                 finalCallback.apply(null, [null].concat(results));
             } else {
-                client.end();
+                done();
             }
         } else {
             var task = tasks[index];
@@ -302,7 +298,7 @@ function queryTasks(client, tasks, finalCallback) {
                         results.push(rows);
                         finalCallback.apply(null, [err].concat(results));
                     } else {
-                        client.end();
+                        done();
                     }
                 } else {
                     if (sqlQuery !== 'BEGIN') {
@@ -324,77 +320,65 @@ function queryTasks(client, tasks, finalCallback) {
 // Better wrapper for transactions.
 //
 function pgTransaction(callback) {
-    var started = false;
-    var ended   = false;
-    var client  = new lib.pg.Client(PG_CONN_STRING);
+    var ended = false;
 
-    function rollbackFromPool(client, done) {
+    function rollbackFromPool(client, done, cb) {
+        ended = true;
         client.query('ROLLBACK', function (err) {
-            ended = true;
-            return done(err);
+            done();
+            if (err) {
+                console.error(new Date(), '=> ERROR: postgresql-query transaction > client.query ROLLBACK', err);
+            }
+            if (isFunction(cb)) {
+                cb(err, null);
+            }
+        });
+    }
+
+    function commitCurrentTransaction(client, done, cb) {
+        ended = true;
+        client.query('COMMIT', function (err) {
+            done();
+            if (err) {
+                console.error(new Date(), '=> ERROR: postgresql-query transaction > client.query COMMIT', err);
+            }
+            if (isFunction(cb)) {
+                cb(err, null);
+            }
         });
     }
 
     if (isFunction(callback)) {
-        lib.pg.connect(PG_CONN_STRING, function (err, client, done) {
-            if (err) { return console.error(err); }
+        pool.connect(function (err, client, done) {
+            if (err) {
+                console.error(new Date(), '=> ERROR: postgresql-query transaction > pool.connect()', err);
+                return callback(err);
+            }
+            var transactionObject = {
+                rollback: function (cb) {
+                    rollbackFromPool(client, done, cb);
+                },
+                commit: function (cb) {
+                    commitCurrentTransaction(client, done, cb);
+                },
+                query: function (tasks, cb) {
+                    tasks = Array.isArray(tasks) ? tasks : [tasks];
 
-            client.query('BEGIN', function (err) {
-                if (err) { return rollbackFromPool(client, done); }
-
-                callback({
-                    rollback: function (callback) {
-                        rollbackFromPool(client, function () {
-                            if (isFunction(callback)) {
-                                callback();
-                            }
-                            return done();
-                        });
-                    },
-                    commit: function (callback) {
-                        ended = true;
-                        client.query('COMMIT', function () {
-                            if (isFunction(callback)) {
-                                callback();
-                            }
-                            return done();
-                        });
-                    },
-                    query: function (tasks, callback) {
-                        tasks = Array.isArray(tasks) ? tasks : [tasks];
-
-                        if (!ended) {
-                            queryTasks(client, tasks, callback);
-                        }
+                    if (!ended) {
+                        queryTasks(client, done, tasks, cb);
                     }
-                });
+                }
+            };
+            client.query('BEGIN', function (err) {
+                if (err) {
+                    done();
+                    ended = true;
+                    console.error(new Date(), '=> ERROR: postgresql-query transaction > client.query BEGIN', err);
+                    return callback(err);
+                }
+                callback(null, transactionObject);
             });
         });
-    } else {
-        client.connect();
-        return {
-            rollback: function () {
-                ended = true;
-                client.query('ROLLBACK', function () {
-                    client.end();
-                });
-            },
-            commit: function () {
-                ended = true;
-                client.query('COMMIT', client.end.bind(client));
-            },
-            query: function (tasks, callback) {
-                tasks = Array.isArray(tasks) ? tasks : [tasks];
-
-                if (!started) {
-                    tasks.unshift(['BEGIN']);
-                }
-
-                if (!ended) {
-                    queryTasks(client, tasks, callback);
-                }
-            }
-        };
     }
 }
 
