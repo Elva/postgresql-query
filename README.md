@@ -12,7 +12,10 @@
 
     npm install postgresql-query
 
+
+
 ## config()
+
 Require and prepare module for querying.
 
 ```js
@@ -26,7 +29,10 @@ db.config({
 });
 ```
 
+
+
 ## query()
+
 Query a database and get results in a callback function.  
 ```
 db.query(sql, values, callback);
@@ -38,7 +44,7 @@ db.query('SELECT * FROM albums WHERE artist_id = $1', 47, function (err, albums)
 ```
 Or run multiple queries in specified order and get all results in a finalCallback functions.
 ```
-db.query(tasks, finalCallback);
+db.query(queries, finalCallback);
 ```
 ```js
 db.query([
@@ -49,6 +55,23 @@ db.query([
         
 });
 ```
+Or use async/await
+```
+db.query(sql, values);
+```
+```js
+(async function () {
+    try {
+        var albums = await db.query('SELECT * FROM albums WHERE artist_id = $1', 47);
+        var genres = await db.query('SELECT * FROM genres WHERE artist_id = $1 AND mood = $2', [47, 'sad']);
+        var comments = await db.query('SELECT * FROM comments WHERE artist_id = $1', [47]);
+    } catch (err) {
+        console.log(err);
+    }
+})();
+```
+
+
 
 ## queryOne()
 Query a database and use only the first row.
@@ -60,14 +83,25 @@ db.queryOne('SELECT * FROM artists WHERE id = $1', 47, function (err, artist) {
     // artist.name
 });
 ```
-
-## queryInsert()
-Helper function to make it easy writing INSERT queries.
 ```
-db.queryInsert(obj, callback);
+db.queryOne(sql, values);
 ```
 ```js
-db.queryInsert({
+(async function () {
+    await artist = db.queryOne('SELECT * FROM artists WHERE id = $1', 47);
+})().catch(function (err) {});
+```
+
+
+
+## insert()
+
+Helper function to make it easy writing INSERT queries.
+```
+db.insert(obj, callback);
+```
+```js
+db.insert({
     table: 'artists',
     fields: {
         first_name: 'John',
@@ -81,18 +115,21 @@ db.queryInsert({
 ```
 Above is the same as this:
 ```js
-db.queryOne('INSERT INTO artists (first_name, last_name, country) VALUES ($1, $2, $3) RETURNING *', ['John', 'Doe', 'Italy'], function (err, insertedRow) {
+db.query('INSERT INTO artists (first_name, last_name, country) VALUES ($1, $2, $3) RETURNING *', ['John', 'Doe', 'Italy'], function (err, insertedRows) {
     
 });
 ```
 
-## queryUpdate()
+
+
+## update()
+
 Helper function to make it easy writing UPDATE queries.
 ```
-db.queryUpdate(obj, callback);
+db.update(obj, callback);
 ```
 ```js
-db.queryUpdate({
+db.update({
     table: 'artists',
     fields: {
         first_name: 'Mister',
@@ -109,38 +146,49 @@ db.queryUpdate({
 ```
 Above is the same as this:
 ```js
-db.queryOne('UPDATE artists SET first_name = $1, last_name = $2, country = $3 WHERE id = $4 RETURNING *', ['Mister', 'Smith', 'Spain', 38], function (err, updatedRow) {
+db.query('UPDATE artists SET first_name = $1, last_name = $2, country = $3 WHERE id = $4 RETURNING *', ['Mister', 'Smith', 'Spain', 38], function (err, updatedRows) {
     
 });
 ```
 
-## beginTransaction()
+
+
+## transaction()
+
 Helper function to make it easy dealing with transactions. It takes only a single parameter - a callback function and passed transaction object to it.
 ```
-db.beginTransaction(function (transaction) {
+db.transaction(function (transaction) {
 });
 ```
+Or async/await
+
+```js
+let transaction = await db.transaction();
+```
+
 Transaction object has three methods:
+
 ```js
 transaction.query();
 transaction.commit();
 transaction.rollback();
 ```
-transaction.query() is similar to db.query and can run multiple queries one after another. It also supports db.insertQuery() and db.updateQuery() syntax, so handy way of writing INSERT/UPDATE queries can be used here as well.
+transaction.query() is similar to db.query and can run multiple queries one after another. It also supports db.insert() and db.update() syntax, so handy way of writing INSERT/UPDATE queries can be used here as well.
 
 Example below starts a transaction, inserts a new artist and if that query was successfull adds two albums on that artist and then commits the transaction.
 ```js
-db.beginTransaction(function (transaction) {
-    transaction.query({
-        table: 'artist',
-        fields: {
-            first_name: 'Something'
-        },
-        returnValue: '*'
-    }, function (err, insertedArtist) {
-        if (err) { return transaction.rollback(); }
-        
-        transaction.query([
+(async function () {
+    let transaction;
+    try {
+        tranaction = await db.transaction();
+        let artist = await transaction.query({
+            table: 'artist',
+            fields: {
+                first_name: 'Something'
+            },
+            returnValue: '*'
+        });
+        await transaction.query([
             {
                 table: 'albums',
                 fields: {
@@ -148,8 +196,7 @@ db.beginTransaction(function (transaction) {
                     title: 'Best Songs',
                     release_year: 2017
                 }
-            },
-            {
+            }, {
                 table: 'albums',
                 fields: {
                     artist_id: insertedArtist.id,
@@ -157,12 +204,11 @@ db.beginTransaction(function (transaction) {
                     release_year: 2016
                 }
             }
-        ], function (err) {
-            if (err) { return transaction.rollback(); }
-            transaction.commit();
-        });
-    });
-});
+        ]);
+        transaction.commit();
+    } catch (err) {
+        console.log(err);
+        transaction.rollback();
+    }
+})();
 ```
-
-It isn't very pretty at first glance, but compared with native way of writing transactions (https://github.com/brianc/node-postgres/wiki/Transactions) it is the most pretty code ever written.
