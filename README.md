@@ -19,7 +19,7 @@
 Require and prepare module for querying.
 
 ```js
-var db = require('postgresql-query');
+let db = require('postgresql-query');
 
 db.config({
     username: '',
@@ -62,9 +62,9 @@ db.query(sql, values);
 ```js
 (async function () {
     try {
-        var albums = await db.query('SELECT * FROM albums WHERE artist_id = $1', 47);
-        var genres = await db.query('SELECT * FROM genres WHERE artist_id = $1 AND mood = $2', [47, 'sad']);
-        var comments = await db.query('SELECT * FROM comments WHERE artist_id = $1', [47]);
+        let albums = await db.query('SELECT * FROM albums WHERE artist_id = $1', 47);
+        let genres = await db.query('SELECT * FROM genres WHERE artist_id = $1 AND mood = $2', [47, 'sad']);
+        let comments = await db.query('SELECT * FROM comments WHERE artist_id = $1', [47]);
     } catch (err) {
         console.log(err);
     }
