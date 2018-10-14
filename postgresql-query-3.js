@@ -72,27 +72,29 @@ function queryStandard(sql, ...args) {
     let values = hasCallback ? args.slice(0, args.length - 1) : args;
     let pr = genericPromise();
 
-    async function flow() {
-        let client = await pool.connect();
+    (async function () {
+        let client;
+
         try {
+            client = await pool.connect();
             let result = await client.query(sql, flatArray(values));
             if (hasCallback) {
                 callback(null, result.rows);
             } else {
                 pr.resolve(result.rows);
             }
+        } catch (err) {
+            if (hasCallback) {
+                callback(err, null);
+            } else {
+                pr.reject(err);
+            }
         } finally {
-            client.release();
+            if (client) {
+                client.release();
+            }
         }
-    }
-
-    flow().catch(function (err) {
-        if (hasCallback) {
-            callback(err, null);
-        } else {
-            pr.reject(err);
-        }
-    });
+    })();
 
     return pr.promise;
 }
@@ -105,9 +107,11 @@ function queryObject(obj, callback) {
     let hasCallback = isFunction(callback);
     let pr = genericPromise();
 
-    async function flow() {
-        let client = await pool.connect();
+    (async function () {
+        let client;
+        
         try {
+            client = await pool.connect();
             let q = obj.where ? buildUpdateQuery(obj) : buildInsertQuery(obj);
             let result = await client.query(q.sql, q.values);
             if (hasCallback) {
@@ -115,18 +119,18 @@ function queryObject(obj, callback) {
             } else {
                 pr.resolve(result.rows);
             }
+        } catch (err) {
+            if (hasCallback) {
+                callback(err, null);
+            } else {
+                pr.reject(err);
+            }
         } finally {
-            client.release();
+            if (client) {
+                client.release();
+            }
         }
-    }
-
-    flow().catch(function (err) {
-        if (hasCallback) {
-            callback(err, null);
-        } else {
-            pr.reject(err);
-        }
-    });
+    })();
 
     return pr.promise;
 }
@@ -147,9 +151,11 @@ function queryArray(list, callback) {
     let hasCallback = isFunction(callback);
     let pr = genericPromise();
 
-    async function flow() {
-        let client = await pool.connect();
+    (async function () {
+        let client;
+        
         try {
+            client = await pool.connect();
             let results = [];
             for (let item of list) {
                 let sql = item[0];
@@ -162,18 +168,18 @@ function queryArray(list, callback) {
             } else {
                 pr.resolve(results);
             }
+        } catch (err) {
+            if (hasCallback) {
+                callback(err, null);
+            } else {
+                pr.reject(err);
+            }
         } finally {
-            client.release();
+            if (client) {
+                client.release();
+            }
         }
-    }
-
-    flow().catch(function (err) {
-        if (hasCallback) {
-            callback(err, null);
-        } else {
-            pr.reject(err);
-        }
-    });
+    })();
 
     return pr.promise;
 }
@@ -182,9 +188,10 @@ function queryArray(list, callback) {
 function newTransaction(callback) {
     let hasCallback = isFunction(callback);
     let pr = genericPromise();
-    async function flow() {
-        let client = await pool.connect();
+    
+    (async function () {
         try {
+            let client = await pool.connect();
             await client.query('BEGIN');
             let transaction = getTransactionObject(client);
 
@@ -194,22 +201,16 @@ function newTransaction(callback) {
                 pr.resolve(transaction);
             }
         } catch (err) {
-            client.release();
+            if (client) {
+                client.release();
+            }
             if (hasCallback) {
                 callback(err, null);
             } else {
                 pr.reject(err);
             }
         }
-    }
-
-    flow().catch(function (err) {
-        if (hasCallback) {
-            callback(err, null);
-        } else {
-            pr.reject(err);
-        }
-    });
+    })();
 
     return pr.promise;
 }
@@ -273,22 +274,22 @@ function getTransactionObject(client) {
         let values = hasCallback ? args.slice(0, args.length - 1) : args;
         let pr = genericPromise();
 
-        async function flow() {
-            let result = await client.query(sql, flatArray(values));
-            if (hasCallback) {
-                callback(null, result.rows);
-            } else {
-                pr.resolve(result.rows);
+        (async function () {
+            try {
+                let result = await client.query(sql, flatArray(values));
+                if (hasCallback) {
+                    callback(null, result.rows);
+                } else {
+                    pr.resolve(result.rows);
+                }
+            } catch (err) {
+                if (hasCallback) {
+                    callback(err, null);
+                } else {
+                    pr.reject(err);
+                }
             }
-        }
-
-        flow().catch(function (err) {
-            if (hasCallback) {
-                callback(err, null);
-            } else {
-                pr.reject(err);
-            }
-        });
+        })();
 
         return pr.promise;
     }
@@ -296,23 +297,23 @@ function getTransactionObject(client) {
         let hasCallback = isFunction(callback);
         let pr = genericPromise();
 
-        async function flow() {
-            let q = obj.where ? buildUpdateQuery(obj) : buildInsertQuery(obj);
-            let result = await client.query(q.sql, q.values);
-            if (hasCallback) {
-                callback(null, result.rows);
-            } else {
-                pr.resolve(result.rows);
+        (async function () {
+            try {
+                let q = obj.where ? buildUpdateQuery(obj) : buildInsertQuery(obj);
+                let result = await client.query(q.sql, q.values);
+                if (hasCallback) {
+                    callback(null, result.rows);
+                } else {
+                    pr.resolve(result.rows);
+                }
+            } catch (err) {
+                if (hasCallback) {
+                    callback(err, null);
+                } else {
+                    pr.reject(err);
+                }
             }
-        }
-
-        flow().catch(function (err) {
-            if (hasCallback) {
-                callback(err, null);
-            } else {
-                pr.reject(err);
-            }
-        });
+        })();
 
         return pr.promise;
     }
@@ -320,28 +321,28 @@ function getTransactionObject(client) {
         let hasCallback = isFunction(callback);
         let pr = genericPromise();
 
-        async function flow() {
-            let results = [];
-            for (let item of list) {
-                let sql = item[0];
-                let values = item.slice(1);
-                let result = await client.query(sql, flatArray(values));
-                results.push(result.rows);
+        (async function () {
+            try {
+                let results = [];
+                for (let item of list) {
+                    let sql = item[0];
+                    let values = item.slice(1);
+                    let result = await client.query(sql, flatArray(values));
+                    results.push(result.rows);
+                }
+                if (hasCallback) {
+                    callback.apply(null, [null].concat(results));
+                } else {
+                    pr.resolve(results);
+                }
+            } catch (err) {
+                if (hasCallback) {
+                    callback(err, null);
+                } else {
+                    pr.reject(err);
+                }
             }
-            if (hasCallback) {
-                callback.apply(null, [null].concat(results));
-            } else {
-                pr.resolve(results);
-            }
-        }
-
-        flow().catch(function (err) {
-            if (hasCallback) {
-                callback(err, null);
-            } else {
-                pr.reject(err);
-            }
-        });
+        })();
 
         return pr.promise;
     }
