@@ -158,8 +158,15 @@ function queryArray(list, callback) {
             client = await pool.connect();
             let results = [];
             for (let item of list) {
-                let sql = item[0];
-                let values = item.slice(1);
+                let sql, values;
+                if (isObject(item)) {
+                    let q = item.where ? buildUpdateQuery(item) : buildInsertQuery(item);
+                    sql = q.sql;
+                    values = q.values;
+                } else {
+                    sql = item[0];
+                    values = item.slice(1);
+                }
                 let result = await client.query(sql, flatArray(values));
                 results.push(result.rows);
             }
@@ -325,8 +332,15 @@ function getTransactionObject(client) {
             try {
                 let results = [];
                 for (let item of list) {
-                    let sql = item[0];
-                    let values = item.slice(1);
+                    let sql, values;
+                    if (isObject(item)) {
+                        let q = item.where ? buildUpdateQuery(item) : buildInsertQuery(item);
+                        sql = q.sql;
+                        values = q.values;
+                    } else {
+                        sql = item[0];
+                        values = item.slice(1);
+                    }
                     let result = await client.query(sql, flatArray(values));
                     results.push(result.rows);
                 }
