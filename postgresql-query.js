@@ -40,6 +40,10 @@ function config(options) {
     options.port     = options.port || 5432;
     options.database = options.database || 'postgres';
 
+    if (options.ssl === true) {
+        options.ssl = { rejectUnauthorized: false };
+    }
+
     pool = new lib.pg.Pool(options);
 }
 
