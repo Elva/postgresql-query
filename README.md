@@ -1,20 +1,15 @@
-### `postgresql-query`
-`Querying PostgreSQL with Node.js made easy.`
+## postgresql-query
+Querying PostgreSQL with Node.js made easy.
 
 &nbsp;
 
-*Created by: [Lasha Tavartkiladze](https://github.com/coloraggio) at [Elva](https://elva.org)*  
-*License: MIT*
-
-&nbsp;
-
-## Install
+### Install
 
     npm install postgresql-query
 
 
 
-## config()
+### config()
 
 Require and prepare module for querying.
 
@@ -31,7 +26,7 @@ db.config({
 
 
 
-## query()
+### query()
 
 Query a database and get results in a callback function.  
 ```
@@ -73,7 +68,7 @@ db.query(sql, values);
 
 
 
-## queryOne()
+### queryOne()
 Query a database and use only the first row.
 ```
 db.queryOne(sql, values, callback);
@@ -94,7 +89,7 @@ db.queryOne(sql, values);
 
 
 
-## insert()
+### insert()
 
 Helper function to make it easy writing INSERT queries.
 ```
@@ -122,7 +117,7 @@ db.query('INSERT INTO artists (first_name, last_name, country) VALUES ($1, $2, $
 
 
 
-## update()
+### update()
 
 Helper function to make it easy writing UPDATE queries.
 ```
@@ -153,7 +148,7 @@ db.query('UPDATE artists SET first_name = $1, last_name = $2, country = $3 WHERE
 
 
 
-## transaction()
+### transaction()
 
 Helper function to make it easy dealing with transactions. It takes only a single parameter - a callback function and passed transaction object to it.
 ```
